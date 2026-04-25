@@ -17,7 +17,10 @@ export async function GET(
     return NextResponse.json({ error: "Audit not found" }, { status: 404 });
   }
 
-  const buffer = await renderToBuffer(React.createElement(ReportPdf, { audit }));
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- @react-pdf typings require ReactElement<DocumentProps>; cast is the documented workaround.
+  const buffer = await renderToBuffer(
+    React.createElement(ReportPdf, { audit }) as any
+  );
   const safeName = audit.gbp.name.replace(/[^a-z0-9-_ ]/gi, "").slice(0, 40).trim();
   const filename = `GBP-Audit-${safeName || "report"}.pdf`;
 
