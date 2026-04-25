@@ -32,7 +32,7 @@ export default async function ReportPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const audit = getAudit(id);
+  const audit = await getAudit(id);
   if (!audit) notFound();
 
   const { gbp, scorecard, narrative, input } = audit;

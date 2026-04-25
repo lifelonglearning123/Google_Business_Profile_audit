@@ -74,7 +74,7 @@ export async function POST(req: Request) {
     narrative,
   };
 
-  saveAudit(audit);
+  await saveAudit(audit);
 
   const origin =
     process.env.NEXT_PUBLIC_SITE_URL ||
