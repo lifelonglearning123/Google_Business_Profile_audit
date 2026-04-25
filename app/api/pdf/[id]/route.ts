@@ -24,7 +24,9 @@ export async function GET(
   const safeName = audit.gbp.name.replace(/[^a-z0-9-_ ]/gi, "").slice(0, 40).trim();
   const filename = `GBP-Audit-${safeName || "report"}.pdf`;
 
-  return new NextResponse(buffer, {
+  // Buffer extends Uint8Array, but Next 15's NextResponse types expect BodyInit
+  // and reject Buffer<ArrayBufferLike>. Wrap as Uint8Array to satisfy the typing.
+  return new NextResponse(new Uint8Array(buffer), {
     status: 200,
     headers: {
       "Content-Type": "application/pdf",
