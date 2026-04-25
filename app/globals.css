@@ -1,0 +1,102 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --surface: #fafafa;
+  --panel: #ffffff;
+  --ink: #0f172a;
+  --ink-muted: #64748b;
+  --hairline: #e5e7eb;
+  --brand: #4f46e5;
+}
+
+html, body {
+  background: var(--surface);
+  color: var(--ink);
+  font-feature-settings: "ss01", "cv11";
+  -webkit-font-smoothing: antialiased;
+}
+
+.numeric,
+.tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Mesh gradient used behind hero sections */
+.bg-mesh {
+  background-image:
+    radial-gradient(at 80% 0%, rgba(79, 70, 229, 0.10), transparent 55%),
+    radial-gradient(at 0% 100%, rgba(16, 185, 129, 0.07), transparent 50%),
+    radial-gradient(at 100% 100%, rgba(99, 102, 241, 0.05), transparent 55%);
+}
+
+.bg-mesh-soft {
+  background-image:
+    radial-gradient(at 70% 20%, rgba(79, 70, 229, 0.06), transparent 60%),
+    radial-gradient(at 20% 80%, rgba(16, 185, 129, 0.04), transparent 55%);
+}
+
+/* CTA button shine on hover */
+.btn-shine {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+}
+.btn-shine::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.28) 50%,
+    transparent 100%
+  );
+  transform: translateX(-120%) skewX(-20deg);
+  pointer-events: none;
+}
+.btn-shine:hover::after {
+  animation: shine 1.1s ease-out;
+}
+
+/* Lift on hover */
+.hover-lift {
+  transition: transform 200ms ease, box-shadow 200ms ease;
+}
+.hover-lift:hover {
+  transform: translateY(-2px);
+}
+
+/* Dotted leader — used in scorecard */
+.leader {
+  background-image: radial-gradient(circle, rgba(148, 163, 184, 0.6) 1px, transparent 1.5px);
+  background-position: bottom;
+  background-size: 6px 3px;
+  background-repeat: repeat-x;
+}
+
+/* Auditing overlay scanning arc */
+.scan-arc {
+  animation: scan 2s linear infinite;
+  transform-origin: center;
+}
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .scan-arc,
+  .animate-scan,
+  .animate-pulseGlow,
+  .animate-barFill,
+  .animate-shine,
+  .animate-fade-in-up {
+    animation: none !important;
+  }
+  .hover-lift:hover {
+    transform: none !important;
+  }
+}
+
+@media print {
+  .no-print { display: none !important; }
+}
