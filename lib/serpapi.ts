@@ -222,7 +222,7 @@ export async function fetchGbp(args: {
     searchRes.place_results ||
     (Array.isArray(searchRes.local_results) ? searchRes.local_results[0] : undefined);
 
-  if (!place?.place_id) {
+  if (!place || !place.place_id) {
     throw new Error(
       "Could not find this business on Google Maps. Double-check the URL and location."
     );
@@ -244,13 +244,14 @@ export async function fetchGbp(args: {
       hl: "en",
     });
     if (detailsRes.place_results) {
-      place = { ...place, ...detailsRes.place_results };
+      const merged: SerpLocal = { ...place, ...detailsRes.place_results };
+      place = merged;
       console.log("[audit] place details fetched", {
-        reviews: place.reviews,
-        rating: place.rating,
-        categories: place.categories ?? place.types,
-        hasWebsite: !!place.website,
-        hasPhone: !!place.phone,
+        reviews: merged.reviews,
+        rating: merged.rating,
+        categories: merged.categories ?? merged.types,
+        hasWebsite: !!merged.website,
+        hasPhone: !!merged.phone,
       });
     }
   } catch (err) {
