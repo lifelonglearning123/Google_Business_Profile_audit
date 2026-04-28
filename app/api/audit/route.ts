@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { AuditInputSchema, type Audit } from "@/lib/types";
-import { fetchGbp } from "@/lib/serpapi";
+import { fetchGbp } from "@/lib/apify";
 import { scoreGbp } from "@/lib/scoring";
 import { generateNarrative } from "@/lib/openai";
 import { sendToGhl } from "@/lib/ghl";

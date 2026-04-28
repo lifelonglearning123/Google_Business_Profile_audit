@@ -1,6 +1,8 @@
 import AuditForm from "@/components/AuditForm";
 import FeatureChip from "@/components/FeatureChip";
 import Accordion from "@/components/Accordion";
+import Link from "next/link";
+import { BRAND_NAME } from "@/lib/brand";
 import {
   ShieldCheck,
   FileDown,
@@ -43,11 +45,24 @@ export default function Home() {
           </p>
 
           {/* Form card */}
-          <div className="mt-10 md:mt-12 relative max-w-2xl mx-auto">
+          <div
+            id="audit-form-anchor"
+            className="mt-10 md:mt-12 relative max-w-2xl mx-auto scroll-mt-12"
+          >
             <div className="absolute -inset-2 bg-gradient-to-r from-brand-500/25 via-brand-500/10 to-accent/20 blur-2xl -z-10 rounded-3xl" />
             <div className="rounded-2xl bg-panel shadow-card-lg border border-hairline p-6 md:p-8 text-left">
               <AuditForm />
             </div>
+          </div>
+
+          {/* Subtle link to the standalone calculator */}
+          <div className="mt-5 text-sm">
+            <Link
+              href="/loss-calculator"
+              className="inline-flex items-center gap-1 text-ink-muted hover:text-brand-700 transition"
+            >
+              Curious how much business you're losing? Try the revenue calculator →
+            </Link>
           </div>
 
           {/* Trust row */}
@@ -226,7 +241,7 @@ export default function Home() {
       </section>
 
       <footer className="py-8 text-center text-xs text-ink-faint">
-        © {new Date().getFullYear()} GBP Audit · Built for local businesses and their agencies
+        © {new Date().getFullYear()} {BRAND_NAME} · Built for local businesses and their agencies
       </footer>
     </main>
   );
@@ -321,7 +336,7 @@ function SamplePreview() {
             <StaticSampleDial />
             <div>
               <p className="text-[11px] font-semibold tracking-[0.14em] uppercase text-ink-faint">
-                GBP Audit · Sample
+                {BRAND_NAME} · Sample
               </p>
               <h3 className="mt-1 text-2xl md:text-3xl font-bold tracking-tight text-ink">
                 Maple Street Dental Practice

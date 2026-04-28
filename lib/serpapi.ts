@@ -126,9 +126,13 @@ type SerpLocal = {
   address?: string;
   phone?: string;
   website?: string;
-  type?: string;
+  // SerpAPI returns `type` as a STRING in local_results (search) and as a
+  // STRING[] in place_results (place_id details). The first element is the
+  // primary category; the rest are secondaries.
+  type?: string | string[];
+  // Only present in local_results (search). Mirrors the categories shown
+  // under the listing on the Maps SERP.
   types?: string[];
-  categories?: string[];
   rating?: number;
   reviews?: number;
   hours?: Record<string, string> | string;
@@ -137,7 +141,6 @@ type SerpLocal = {
   service_options?: Record<string, boolean>;
   thumbnail?: string;
   photos_link?: string;
-  photos_count?: number;
   user_review?: unknown;
 };
 
@@ -249,7 +252,8 @@ export async function fetchGbp(args: {
       console.log("[audit] place details fetched", {
         reviews: merged.reviews,
         rating: merged.rating,
-        categories: merged.categories ?? merged.types,
+        type: merged.type,
+        types: merged.types,
         hasWebsite: !!merged.website,
         hasPhone: !!merged.phone,
       });
@@ -258,9 +262,39 @@ export async function fetchGbp(args: {
     console.warn("[audit] place-details follow-up failed, continuing with search data:", err);
   }
 
+  const dataId = place.data_id ?? parsed.dataId;
+
+  // ── Photos count ──
+  // SerpAPI's place_results does NOT expose a photo count. The only way to
+  // get one is to paginate the `google_maps_photos` engine and count results.
+  // We stop once we've passed the top score bucket (100) so a profile with
+  // 1000+ photos doesn't burn 80+ credits — scoring caps at 100 anyway.
+  let photoCount: number | undefined;
+  if (dataId) {
+    try {
+      let total = 0;
+      let token: string | undefined;
+      let pages = 0;
+      const MAX_PAGES = 10;
+      do {
+        const res = await serpRequest({
+          engine: "google_maps_photos",
+          data_id: dataId,
+          hl: "en",
+          ...(token ? { next_page_token: token } : {}),
+        });
+        total += Array.isArray(res.photos) ? res.photos.length : 0;
+        token = res.serpapi_pagination?.next_page_token;
+        pages++;
+      } while (token && total < 100 && pages < MAX_PAGES);
+      photoCount = total;
+    } catch (err) {
+      console.warn("[audit] photos fetch failed:", err);
+    }
+  }
+
   // ── Reviews (up to ~40) ──
   const reviews: Review[] = [];
-  const dataId = place.data_id ?? parsed.dataId;
   if (dataId) {
     try {
       const r1 = await serpRequest({
@@ -284,13 +318,22 @@ export async function fetchGbp(args: {
   }
 
   // ── Categories ──
+  // place_results returns `type` as string[] (primary at [0]); local_results
+  // returns `type` as string + a parallel `types` array. Read both shapes and
+  // de-duplicate. Never read `place.categories` — SerpAPI doesn't return it.
   const categories: string[] = [];
-  if (Array.isArray(place.categories)) {
-    for (const c of place.categories) if (c && !categories.includes(c)) categories.push(c);
+  const rawType = place.type;
+  if (Array.isArray(rawType)) {
+    for (const c of rawType) {
+      if (typeof c === "string" && c && !categories.includes(c)) categories.push(c);
+    }
+  } else if (typeof rawType === "string" && rawType && !categories.includes(rawType)) {
+    categories.push(rawType);
   }
-  if (place.type && !categories.includes(place.type)) categories.push(place.type);
   if (Array.isArray(place.types)) {
-    for (const t of place.types) if (t && !categories.includes(t)) categories.push(t);
+    for (const t of place.types) {
+      if (typeof t === "string" && t && !categories.includes(t)) categories.push(t);
+    }
   }
 
   // ── Services ──
@@ -311,14 +354,14 @@ export async function fetchGbp(args: {
     hours: place.hours,
     description: place.description,
     services,
-    attributes: [],
-    posts: [],
-    questions: [],
+    // attributes / posts / questions are not currently sourced from SerpAPI.
+    // Leaving them undefined (rather than []) lets scoreEngagement distinguish
+    // "we didn't measure this" from "we measured it and it was empty".
     reviews,
     placeId: place.place_id,
     dataId,
     thumbnail: place.thumbnail,
-    photoCount: place.photos_count,
+    photoCount,
   };
 }
 

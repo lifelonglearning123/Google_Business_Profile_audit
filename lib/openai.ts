@@ -1,7 +1,7 @@
 import OpenAI from "openai";
 import type { GbpData, Narrative, ScoreCard } from "./types";
 
-const MODEL = process.env.OPENAI_MODEL || "gpt-5.4";
+const MODEL = process.env.OPENAI_MODEL || "gpt-5.5";
 
 let _client: OpenAI | null = null;
 function getClient(): OpenAI {
@@ -60,6 +60,14 @@ export async function generateNarrative(args: {
       photoCount: gbp.photoCount,
       hasDescription: !!gbp.description,
       descriptionLength: gbp.description?.length ?? 0,
+      // Hero copy / meta description scraped from the business's own
+      // website. Use it to judge how clearly this business communicates
+      // what they do, and to ground recommendations in their own language.
+      websiteDescription: gbp.websiteDescription,
+      // For each GBP category, did we find a matching page on the site?
+      // When `unmatched` is non-empty the LLM should reference the exact
+      // missing pages in its recommendations — concrete + actionable.
+      categoryPageCoverage: gbp.categoryPageMatches,
       hoursSet: !!gbp.hours,
     },
     reviewSample,

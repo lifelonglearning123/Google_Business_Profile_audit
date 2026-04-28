@@ -33,6 +33,25 @@ export type GbpData = {
   hours?: Record<string, string> | string;
   photoCount?: number;
   description?: string;
+  // Best-effort summary extracted from the business's own website. Used as
+  // a richer "does this business communicate clearly?" signal than the GBP
+  // description box, which most data sources can't read.
+  websiteDescription?: string;
+  // For each GBP category, did we find a matching page on the website?
+  // Undefined when we couldn't reach the website at all (no penalty in
+  // scoring). Empty unmatched list = full coverage.
+  categoryPageMatches?: {
+    matched: string[];   // categories with a page found
+    unmatched: string[]; // categories with no page found
+    total: number;       // categories considered
+  };
+  // Lightweight signals about the linked website itself, used by the
+  // dedicated Website pillar in scoreWebsite. Undefined when no website
+  // was set on the GBP.
+  websiteSignals?: {
+    reachable: boolean;
+    https: boolean;
+  };
   services?: string[];
   attributes?: string[];
   posts?: { date?: string; text?: string }[];

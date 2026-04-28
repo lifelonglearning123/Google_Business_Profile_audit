@@ -10,6 +10,7 @@ import {
   Circle,
 } from "@react-pdf/renderer";
 import type { Audit } from "@/lib/types";
+import { BRAND_NAME } from "@/lib/brand";
 
 /* ──── Palette (matches web) ──── */
 const BRAND = "#4f46e5";
@@ -225,8 +226,8 @@ export default function ReportPdf({ audit }: { audit: Audit }) {
 
   return (
     <Document
-      title={`GBP Audit — ${gbp.name}`}
-      author="GBP Audit Tool"
+      title={`${BRAND_NAME} — ${gbp.name}`}
+      author={BRAND_NAME}
       subject="Google Business Profile audit report"
     >
       {/* ─── Page 1: Hero + Scorecard ─── */}
@@ -234,7 +235,7 @@ export default function ReportPdf({ audit }: { audit: Audit }) {
         <View style={styles.hero}>
           <PdfScoreDial score={scorecard.overall} grade={scorecard.grade} />
           <View style={styles.heroLeft}>
-            <Text style={styles.eyebrow}>GBP Audit Report</Text>
+            <Text style={styles.eyebrow}>{BRAND_NAME} Report</Text>
             <Text style={styles.h1}>{gbp.name}</Text>
             <Text style={[styles.muted, { fontSize: 9 }]}>
               {[input.industry, gbp.address, input.location].filter(Boolean).join("  ·  ")}

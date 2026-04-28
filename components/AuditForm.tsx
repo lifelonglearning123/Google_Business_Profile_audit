@@ -43,6 +43,25 @@ export default function AuditForm() {
   const [apiError, setApiError] = useState<string | null>(null);
   const [shakeKey, setShakeKey] = useState(0);
 
+  // Pre-fill industry + location from a prior loss-calculator submission
+  // on the same page. The LossCalculator component stashes the values in
+  // sessionStorage and scrolls here on its CTA — picking them up makes
+  // the funnel one-click smoother.
+  useEffect(() => {
+    try {
+      const raw = sessionStorage.getItem("gbp-audit:loss-prefill");
+      if (!raw) return;
+      const parsed = JSON.parse(raw) as { industry?: string; location?: string };
+      setValues((prev) => ({
+        ...prev,
+        industry: prev.industry || parsed.industry || "",
+        location: prev.location || parsed.location || "",
+      }));
+    } catch {
+      // sessionStorage can throw in some contexts — ignore.
+    }
+  }, []);
+
   function update<K extends keyof Values>(k: K, v: string) {
     setValues((prev) => ({ ...prev, [k]: v }));
   }

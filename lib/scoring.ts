@@ -14,6 +14,7 @@ export function scoreGbp(gbp: GbpData): ScoreCard {
     scoreCategoriesAndServices(gbp),
     scorePhotos(gbp),
     scoreEngagement(gbp),
+    scoreWebsite(gbp),
   ];
 
   const totalWeight = subScores.reduce((s, x) => s + x.weight, 0);
@@ -38,13 +39,13 @@ function grade(n: number): ScoreCard["grade"] {
 
 function scoreCompleteness(gbp: GbpData): SubScore {
   const findings: string[] = [];
+  // Hard signals (binary present / not present). The "Website linked"
+  // sub-check used to live here but moved to the dedicated Website pillar.
   const checks: Array<[boolean, string, number]> = [
     [!!gbp.name, "Business name present", 10],
     [!!gbp.address, "Address listed", 15],
     [!!gbp.phone, "Phone number listed", 15],
-    [!!gbp.website, "Website linked", 15],
     [!!gbp.hours, "Opening hours set", 15],
-    [!!gbp.description && gbp.description.length > 100, "Has a meaningful description (100+ chars)", 15],
     [(gbp.categories?.length ?? 0) > 0, "Primary category set", 15],
   ];
 
@@ -56,13 +57,51 @@ function scoreCompleteness(gbp: GbpData): SubScore {
     else findings.push(`Missing: ${label}`);
   }
 
-  if (findings.length === 0) findings.push("Profile basics are fully filled in.");
+  // ── Description sub-score ──
+  // Public data sources (SerpAPI, Apify, Google Places) only expose Google's
+  // editorial tagline — not the owner-written "About" blurb. To avoid
+  // falsely accusing every owner of having no description, we score on a
+  // tri-state that combines the GBP description (when present) with the
+  // website's own meta/hero copy (a more reliable proxy for "does this
+  // business communicate clearly?").
+  const gbpDesc = gbp.description?.trim() ?? "";
+  const webDesc = gbp.websiteDescription?.trim() ?? "";
+  const descWeight = 10;
+  total += descWeight;
+
+  if (gbpDesc.length >= 100) {
+    earned += descWeight;
+    findings.push(`Description present on the profile (${gbpDesc.length} chars).`);
+  } else if (gbpDesc.length > 0) {
+    earned += Math.round(descWeight * 0.6);
+    findings.push(
+      `Short description on the profile (${gbpDesc.length} chars) — aim for 250+.`
+    );
+  } else if (webDesc.length >= 80) {
+    // Website-derived signal — not as good as a real GBP description but
+    // shows the business does communicate clearly somewhere.
+    earned += Math.round(descWeight * 0.5);
+    findings.push(
+      "No description visible on the profile, but the website explains the business clearly."
+    );
+  } else {
+    // Only zero credit when BOTH are missing.
+    findings.push(
+      "No description detected on the profile or website — add a 250+ word \"About\" blurb in your GBP dashboard."
+    );
+  }
+
+  if (
+    findings.filter((f) => f.startsWith("Missing:") || f.startsWith("No description")).length === 0
+  ) {
+    findings.unshift("Profile basics are fully filled in.");
+  }
 
   return {
     key: "completeness",
     label: "Profile Completeness",
     score: Math.round((earned / total) * 100),
-    weight: 25,
+    weight: 20,
     findings,
   };
 }
@@ -152,11 +191,14 @@ function scoreCategoriesAndServices(gbp: GbpData): SubScore {
   const cats = gbp.categories?.length ?? 0;
   const svcs = gbp.services?.length ?? 0;
 
-  let score = 0;
-  if (cats >= 1) score += 40;
-  if (cats >= 3) score += 20;
-  if (svcs >= 3) score += 20;
-  if (svcs >= 8) score += 20;
+  // 4 thresholds summing to 75 internal weight, scaled to 100. Category-page
+  // coverage used to add another 25 here but moved to the Website pillar.
+  let earned = 0;
+  if (cats >= 1) earned += 30;
+  if (cats >= 3) earned += 15;
+  if (svcs >= 3) earned += 15;
+  if (svcs >= 8) earned += 15;
+  const total = 75;
 
   if (cats === 0) findings.push("No categories set — critical for local ranking.");
   else if (cats === 1) findings.push("Only a primary category — add 1-2 secondary categories.");
@@ -168,8 +210,8 @@ function scoreCategoriesAndServices(gbp: GbpData): SubScore {
   return {
     key: "categories",
     label: "Categories & Services",
-    score: Math.min(100, score),
-    weight: 15,
+    score: Math.round((earned / total) * 100),
+    weight: 10,
     findings,
   };
 }
@@ -196,6 +238,21 @@ function scorePhotos(gbp: GbpData): SubScore {
 }
 
 function scoreEngagement(gbp: GbpData): SubScore {
+  // Posts and Q&A aren't sourced today (SerpAPI's place_results doesn't
+  // expose them). When both are undefined, return a neutral 50 so this
+  // pillar doesn't unfairly drag the overall score. When data is present
+  // (future), the normal bucketed scoring kicks in.
+  const measured = gbp.posts !== undefined || gbp.questions !== undefined;
+  if (!measured) {
+    return {
+      key: "engagement",
+      label: "Posts & Q&A",
+      score: 50,
+      weight: 5,
+      findings: ["Posts and Q&A activity aren't measured in this report."],
+    };
+  }
+
   const findings: string[] = [];
   const posts = gbp.posts?.length ?? 0;
   const qa = gbp.questions?.length ?? 0;
@@ -215,7 +272,81 @@ function scoreEngagement(gbp: GbpData): SubScore {
     key: "engagement",
     label: "Posts & Q&A",
     score: Math.min(100, score),
-    weight: 10,
+    weight: 5,
+    findings,
+  };
+}
+
+function scoreWebsite(gbp: GbpData): SubScore {
+  const findings: string[] = [];
+
+  // Short-circuit: no website on the GBP at all → pillar = 0. Owner needs
+  // to add a website URL in their dashboard before any other sub-check
+  // becomes meaningful.
+  if (!gbp.website) {
+    return {
+      key: "website",
+      label: "Website",
+      score: 0,
+      weight: 15,
+      findings: [
+        "No website linked on the profile — add one in your GBP dashboard. Websites are a top local-SEO signal.",
+      ],
+    };
+  }
+
+  // Build the score on a dynamic total so the owner isn't punished for our
+  // own fetch failures or for not having categories set yet.
+  let earned = 30; // "Website linked" passes
+  let total = 30;
+  findings.push("Website is linked on the profile.");
+
+  const sigs = gbp.websiteSignals;
+  if (sigs) {
+    total += 15;
+    if (sigs.reachable) {
+      earned += 15;
+    } else {
+      findings.push(
+        "Website didn't respond to a fetch — check the URL is alive and not parked or blocking bots."
+      );
+    }
+
+    total += 10;
+    if (sigs.https) {
+      earned += 10;
+    } else {
+      findings.push(
+        "Website doesn't use HTTPS — switch to a secure (https://) URL; Google ranks secure sites higher."
+      );
+    }
+  }
+
+  const cov = gbp.categoryPageMatches;
+  if (cov && cov.total > 0) {
+    total += 45;
+    const ratio = cov.matched.length / cov.total;
+    let coverageEarned = 0;
+    if (ratio >= 0.8) coverageEarned = 45;
+    else if (ratio >= 0.5) coverageEarned = 27;
+    else if (ratio > 0) coverageEarned = 9;
+    earned += coverageEarned;
+
+    findings.push(
+      `Website page coverage: ${cov.matched.length} of ${cov.total} GBP categories have a matching page.`
+    );
+    if (cov.unmatched.length > 0) {
+      findings.push(
+        `Missing pages for: ${cov.unmatched.join(", ")} — each one is a long-tail keyword you don't show up for.`
+      );
+    }
+  }
+
+  return {
+    key: "website",
+    label: "Website",
+    score: Math.round((earned / total) * 100),
+    weight: 15,
     findings,
   };
 }

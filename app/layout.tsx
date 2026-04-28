@@ -1,8 +1,9 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import { BRAND_NAME } from "@/lib/brand";
 
 export const metadata: Metadata = {
-  title: "Google Business Profile Audit — Free Instant Report",
+  title: `${BRAND_NAME} — Free Google Business Profile Audit`,
   description:
     "Get a comprehensive review of your Google Business Profile in under 60 seconds. Scorecard, prioritised fixes, and a sharable PDF report.",
 };
@@ -24,7 +25,7 @@ function TopNav() {
       <div className="mx-auto max-w-6xl px-6 h-14 flex items-center justify-between">
         <a href="/" className="flex items-center gap-2 font-bold text-ink tracking-tight">
           <Mark />
-          <span>GBP&nbsp;Audit</span>
+          <span className="whitespace-nowrap">{BRAND_NAME}</span>
         </a>
         <div className="flex items-center gap-5">
           <a href="/#how" className="hidden sm:inline text-sm text-ink-muted hover:text-ink transition">

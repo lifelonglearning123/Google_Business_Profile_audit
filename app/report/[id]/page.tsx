@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { getAudit } from "@/lib/store";
+import { BRAND_NAME } from "@/lib/brand";
 import ScoreDial from "@/components/ScoreDial";
 import SubScoreBar from "@/components/SubScoreBar";
 import RecommendationList from "@/components/RecommendationList";
@@ -70,7 +71,7 @@ export default async function ReportPage({
                 <ScoreDial score={scorecard.overall} grade={scorecard.grade} size={200} />
                 <div className="flex-1 min-w-0">
                   <p className="text-[11px] font-semibold tracking-[0.14em] uppercase text-brand-600 mb-2">
-                    GBP Audit Report
+                    {BRAND_NAME} Report
                   </p>
                   <h1 className="text-3xl md:text-4xl font-extrabold tracking-tight text-ink leading-tight">
                     {gbp.name}

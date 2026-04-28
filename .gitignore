@@ -37,6 +37,9 @@ next-env.d.ts
 # local audit store (file-based persistence in dev)
 .audits/
 
+# diagnostic / one-off script output
+tmp/
+
 # IDE
 .idea/
 .vscode/

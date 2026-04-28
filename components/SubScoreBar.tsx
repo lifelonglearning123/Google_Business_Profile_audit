@@ -9,6 +9,7 @@ import {
   Tags,
   Image as ImageIcon,
   Megaphone,
+  Globe,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import type { SubScore } from "@/lib/types";
@@ -20,6 +21,7 @@ const PILLAR_ICONS: Record<string, LucideIcon> = {
   categories: Tags,
   photos: ImageIcon,
   engagement: Megaphone,
+  website: Globe,
 };
 
 export default function SubScoreBar({ s }: { s: SubScore }) {

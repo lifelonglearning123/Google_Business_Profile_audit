@@ -2,7 +2,10 @@
   "permissions": {
     "allow": [
       "Bash(npm install *)",
-      "Bash(curl *)"
+      "Bash(curl *)",
+      "Bash(npx tsc *)",
+      "Bash(node scripts/dump-apify.mjs)",
+      "Bash(APIFY_TIMEOUT_MS=120000 npx tsx scripts/audit-urls.ts \"https://share.google/Rlw4ckjMaPRkSZRYB\" \"https://share.google/cvYRVBoO4h8o9h4Qk\" \"https://share.google/449WXR4n3QXUXX6vZ\")"
     ]
   }
 }
