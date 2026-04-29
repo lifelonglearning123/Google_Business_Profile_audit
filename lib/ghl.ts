@@ -130,10 +130,18 @@ export async function pushAuditToGhlApi(
 
   const { input } = audit;
 
-  // ── Step 1a: search for an existing contact by mobile number ──
+  // ── Step 1a: search by mobile (the preferred unique key) ──
   let contactId = await findContactByPhone(headers, locationId, input.mobile);
 
-  // ── Step 1b: create one if not found ──
+  // ── Step 1b: fall back to email if phone search missed ──
+  // Catches the case where an existing contact has the same email but a
+  // phone stored in a format that didn't match our normalisation (or no
+  // phone at all). Cheaper than letting create-then-recover handle it.
+  if (!contactId) {
+    contactId = await findContactByEmail(headers, locationId, input.email);
+  }
+
+  // ── Step 1c: create if still nothing matched ──
   if (!contactId) {
     contactId = await createContact(headers, locationId, audit);
   }
@@ -152,13 +160,7 @@ async function findContactByPhone(
   locationId: string,
   phone: string
 ): Promise<string | undefined> {
-  // Normalise phone for matching: strip whitespace, parens, dashes — leaves
-  // digits and a leading + if present. GHL stores phones in E.164 (e.g.
-  // +447700900000), so an input of "07700 900 000" needs at minimum the
-  // grouping characters dropped to stand a chance of matching. Full E.164
-  // conversion would need a country code lookup; we keep this minimal so
-  // we don't accidentally munge international formats.
-  const normalised = phone.replace(/[\s()\-]/g, "").trim();
+  const normalised = toE164Uk(phone);
   if (!normalised) return undefined;
 
   try {
@@ -176,29 +178,100 @@ async function findContactByPhone(
     });
     if (!res.ok) {
       const body = await res.text().catch(() => "");
-      // 404 is fine — means no contacts. Anything else worth surfacing.
       if (res.status !== 404) {
         console.warn(
-          `[ghl-api] search returned ${res.status}: ${body.slice(0, 240)}`
+          `[ghl-api] phone search returned ${res.status}: ${body.slice(0, 240)}`
         );
       }
       return undefined;
     }
     const data = (await res.json().catch(() => ({}))) as {
       contacts?: Array<{ id?: string }>;
-      total?: number;
     };
     const found = data.contacts?.[0]?.id;
     if (found) {
       console.log(`[ghl-api] found existing contact by phone: ${found}`);
       return found;
     }
-    console.log("[ghl-api] no contact match by phone — will create");
+    console.log(`[ghl-api] no contact match by phone (${normalised})`);
     return undefined;
   } catch (err) {
-    logFetchError("contact search", err);
+    logFetchError("phone search", err);
     return undefined;
   }
+}
+
+async function findContactByEmail(
+  headers: Record<string, string>,
+  locationId: string,
+  email: string
+): Promise<string | undefined> {
+  const trimmed = email.trim().toLowerCase();
+  if (!trimmed) return undefined;
+
+  try {
+    const res = await fetchWithTimeout(`${GHL_API_BASE}/contacts/search`, {
+      method: "POST",
+      headers,
+      body: JSON.stringify({
+        locationId,
+        page: 1,
+        pageLimit: 1,
+        filters: [
+          { field: "email", operator: "eq", value: trimmed },
+        ],
+      }),
+    });
+    if (!res.ok) {
+      const body = await res.text().catch(() => "");
+      if (res.status !== 404) {
+        console.warn(
+          `[ghl-api] email search returned ${res.status}: ${body.slice(0, 240)}`
+        );
+      }
+      return undefined;
+    }
+    const data = (await res.json().catch(() => ({}))) as {
+      contacts?: Array<{ id?: string }>;
+    };
+    const found = data.contacts?.[0]?.id;
+    if (found) {
+      console.log(`[ghl-api] found existing contact by email: ${found}`);
+      return found;
+    }
+    console.log("[ghl-api] no contact match by email either — will create");
+    return undefined;
+  } catch (err) {
+    logFetchError("email search", err);
+    return undefined;
+  }
+}
+
+/**
+ * Normalise a UK-friendly phone string to E.164 so it matches what GHL
+ * stores. Handles the common forms users actually type:
+ *
+ *   "07712 345678"     → "+447712345678"   (UK national → E.164)
+ *   "+44 7712 345678"  → "+447712345678"   (already E.164, just clean)
+ *   "447712345678"     → "+447712345678"   (no plus, country code present)
+ *   "+15551234567"     → "+15551234567"    (non-UK E.164 left untouched)
+ *
+ * Limited to UK as the assumed default country. If you start auditing
+ * non-UK businesses, swap this for a proper libphonenumber call.
+ */
+function toE164Uk(phone: string): string {
+  // Strip anything that isn't a digit or leading plus.
+  let cleaned = phone.replace(/[^\d+]/g, "").trim();
+  if (!cleaned) return "";
+
+  // Already E.164 — return as-is.
+  if (cleaned.startsWith("+")) return cleaned;
+
+  // UK national format starting with 0 → strip the 0, prepend +44.
+  if (cleaned.startsWith("0")) return "+44" + cleaned.slice(1);
+
+  // Has a country code already, just missing the plus.
+  return "+" + cleaned;
 }
 
 async function createContact(
@@ -224,22 +297,53 @@ async function createContact(
         tags: ["gbp-audit"],
       }),
     });
-    if (!res.ok) {
-      const body = await res.text().catch(() => "");
-      console.error(
-        `[ghl-api] contact create returned ${res.status}: ${body.slice(0, 240)}`
-      );
+
+    if (res.ok) {
+      const data = (await res.json().catch(() => ({}))) as {
+        contact?: { id?: string };
+      };
+      const id = data.contact?.id;
+      if (id) {
+        console.log(`[ghl-api] contact created: ${id}`);
+        return id;
+      }
+      console.error("[ghl-api] contact create returned 200 but no id in body");
       return undefined;
     }
-    const data = (await res.json().catch(() => ({}))) as {
-      contact?: { id?: string };
-    };
-    const id = data.contact?.id;
-    if (id) {
-      console.log(`[ghl-api] contact created: ${id}`);
-      return id;
+
+    // GHL returns 400 with the existing contactId in the body when the
+    // location has "no duplicate contacts" enabled and our search-by-phone
+    // missed because the existing contact matched on a different field
+    // (typically email). Recover the contactId so we can still attach the
+    // note rather than treating this as a hard failure.
+    //
+    // Sample 400 body:
+    //   {
+    //     "statusCode": 400,
+    //     "message": "This location does not allow duplicated contacts.",
+    //     "meta": { "contactId": "...", "matchingField": "email" }
+    //   }
+    const body = await res.text().catch(() => "");
+    if (res.status === 400) {
+      try {
+        const parsed = JSON.parse(body) as {
+          meta?: { contactId?: string; matchingField?: string };
+          message?: string;
+        };
+        const existingId = parsed.meta?.contactId;
+        if (typeof existingId === "string" && existingId.length > 0) {
+          console.log(
+            `[ghl-api] duplicate contact detected — reusing id ${existingId} (matched on ${parsed.meta?.matchingField ?? "?"})`
+          );
+          return existingId;
+        }
+      } catch {
+        // body wasn't JSON we can parse — fall through to error log
+      }
     }
-    console.error("[ghl-api] contact create returned 200 but no id in body");
+    console.error(
+      `[ghl-api] contact create returned ${res.status}: ${body.slice(0, 240)}`
+    );
     return undefined;
   } catch (err) {
     logFetchError("contact create", err);
