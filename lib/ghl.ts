@@ -96,7 +96,9 @@ export async function sendToGhl(audit: Audit, reportUrl: string): Promise<void> 
  *      different businesses, but the phone identifies the human)
  *      → if found, use that contact id
  *      → if not, create one                     POST /contacts/
- *   2. Attach the audit note                    POST /contacts/{id}/notes
+ *   2. Ensure the gbp-audit tag is set          POST /contacts/{id}/tags
+ *      (idempotent — guarantees the tag even on reused contacts)
+ *   3. Attach the audit note                    POST /contacts/{id}/notes
  *
  * Search-first (rather than /contacts/upsert) gives us explicit control
  * over create-vs-reuse and matches GHL's documented v2 pattern. Note
@@ -151,8 +153,11 @@ export async function pushAuditToGhlApi(
     return;
   }
 
-  // ── Step 2: attach the audit note ──
-  await attachAuditNote(headers, contactId, audit, reportUrl);
+  // ── Steps 2 + 3: ensure tag + attach note (parallel; independent) ──
+  await Promise.all([
+    ensureAuditTag(headers, contactId),
+    attachAuditNote(headers, contactId, audit, reportUrl),
+  ]);
 }
 
 async function findContactByPhone(
@@ -382,6 +387,35 @@ async function attachAuditNote(
     console.log(`[ghl-api] note attached to contact ${contactId}`);
   } catch (err) {
     logFetchError("note create", err);
+  }
+}
+
+// POST /contacts/{id}/tags is additive (no-op if already present), so this
+// is safe to call on every push — covers the reuse paths where the contact
+// was found via phone/email search or recovered from a 400 duplicate.
+async function ensureAuditTag(
+  headers: Record<string, string>,
+  contactId: string
+): Promise<void> {
+  try {
+    const res = await fetchWithTimeout(
+      `${GHL_API_BASE}/contacts/${contactId}/tags`,
+      {
+        method: "POST",
+        headers,
+        body: JSON.stringify({ tags: ["gbp-audit"] }),
+      }
+    );
+    if (!res.ok) {
+      const body = await res.text().catch(() => "");
+      console.error(
+        `[ghl-api] tag add returned ${res.status}: ${body.slice(0, 240)}`
+      );
+      return;
+    }
+    console.log(`[ghl-api] gbp-audit tag ensured on contact ${contactId}`);
+  } catch (err) {
+    logFetchError("tag add", err);
   }
 }
 

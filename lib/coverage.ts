@@ -57,6 +57,33 @@ const TOPIC_STOPWORDS = new Set([
   "contractor", "contractors", "business", "businesses",
 ]);
 
+// US ↔ UK spelling variants. Google's category taxonomy is US-English
+// ("Tire shop", "Auto repair center"), but UK / AU / IE / NZ / CA business
+// websites use the local form ("tyre", "centre", etc.). Expanding each
+// token to its variant lets the matcher hit the right pages regardless.
+//
+// Bidirectional: whichever form the category uses, the variant is added.
+const SPELLING_VARIANTS: Record<string, string> = {
+  tire: "tyre",
+  tyre: "tire",
+  center: "centre",
+  centre: "center",
+  color: "colour",
+  colour: "color",
+  harbor: "harbour",
+  harbour: "harbor",
+  specialty: "speciality",
+  speciality: "specialty",
+  aluminum: "aluminium",
+  aluminium: "aluminum",
+  catalog: "catalogue",
+  catalogue: "catalog",
+  meter: "metre",
+  metre: "meter",
+  fiber: "fibre",
+  fibre: "fiber",
+};
+
 function essenceTokens(name: string): string[] {
   const raw = name
     .toLowerCase()
@@ -66,8 +93,11 @@ function essenceTokens(name: string): string[] {
   for (const t of raw) {
     if (t.length < 3) continue;
     if (TOPIC_STOPWORDS.has(t)) continue;
-    if (out.includes(t)) continue;
-    out.push(t);
+    if (!out.includes(t)) out.push(t);
+    // Also include the spelling variant if known — bidirectional, so
+    // "Tire shop" → [tire, tyre] and a tyre-named UK site matches.
+    const variant = SPELLING_VARIANTS[t];
+    if (variant && !out.includes(variant)) out.push(variant);
   }
   return out;
 }
