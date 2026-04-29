@@ -7,7 +7,12 @@ import { sendToGhl, pushAuditToGhlApi } from "@/lib/ghl";
 import { saveAudit } from "@/lib/store";
 
 export const runtime = "nodejs";
-export const maxDuration = 60;
+// 90s ceiling — Vercel Pro supports up to 300s. The audit pipeline is
+// inherently sequential (Apify ~30s + website ~5s + OpenAI ~10-30s + GHL
+// ~5s) so 60s was too tight when any step ran slow. 90s gives ~30s
+// headroom for the OpenAI call, which is the biggest variable on
+// gpt-5.5-class reasoning models.
+export const maxDuration = 90;
 
 function randomId(): string {
   return (

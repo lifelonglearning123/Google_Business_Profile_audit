@@ -89,6 +89,8 @@ export async function generateNarrative(args: {
     },
   };
 
+  console.log(`[narrative] requesting ${MODEL}…`);
+  const t0 = Date.now();
   const completion = await getClient().chat.completions.create({
     model: MODEL,
     // NB: GPT-5-class models only accept the default temperature (1). We
@@ -105,6 +107,7 @@ export async function generateNarrative(args: {
       },
     ],
   });
+  console.log(`[narrative] ${MODEL} responded in ${Date.now() - t0}ms`);
 
   const raw = completion.choices[0]?.message?.content ?? "{}";
 
