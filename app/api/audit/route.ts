@@ -81,8 +81,16 @@ export async function POST(req: Request) {
     `${new URL(req.url).protocol}//${new URL(req.url).host}`;
   const reportUrl = `${origin}/report/${audit.id}`;
 
-  // Fire GHL webhook without blocking the response.
-  sendToGhl(audit, reportUrl).catch((e) => console.error("[audit] ghl dispatch:", e));
+  // Send the GHL webhook BEFORE returning. Originally fire-and-forget,
+  // but on Vercel serverless the function freezes once the response is
+  // sent — pending fetches get cut off and the webhook silently drops.
+  // Awaiting adds ~200-500ms to the response (negligible vs the 25-30s
+  // the audit pipeline already takes) and makes lead delivery reliable.
+  try {
+    await sendToGhl(audit, reportUrl);
+  } catch (e) {
+    console.error("[audit] ghl dispatch:", e);
+  }
 
   return NextResponse.json({ id: audit.id, reportUrl });
 }
