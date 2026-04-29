@@ -3,7 +3,7 @@ import { AuditInputSchema, type Audit } from "@/lib/types";
 import { fetchGbp } from "@/lib/apify";
 import { scoreGbp } from "@/lib/scoring";
 import { generateNarrative } from "@/lib/openai";
-import { sendToGhl } from "@/lib/ghl";
+import { sendToGhl, pushAuditToGhlApi } from "@/lib/ghl";
 import { saveAudit } from "@/lib/store";
 
 export const runtime = "nodejs";
@@ -81,16 +81,15 @@ export async function POST(req: Request) {
     `${new URL(req.url).protocol}//${new URL(req.url).host}`;
   const reportUrl = `${origin}/report/${audit.id}`;
 
-  // Send the GHL webhook BEFORE returning. Originally fire-and-forget,
-  // but on Vercel serverless the function freezes once the response is
-  // sent — pending fetches get cut off and the webhook silently drops.
-  // Awaiting adds ~200-500ms to the response (negligible vs the 25-30s
-  // the audit pipeline already takes) and makes lead delivery reliable.
-  try {
-    await sendToGhl(audit, reportUrl);
-  } catch (e) {
-    console.error("[audit] ghl dispatch:", e);
-  }
+  // Run BOTH GHL paths in parallel — webhook (n8n / Zapier) and direct API
+  // (contact upsert + note). Each function checks its own env vars and
+  // returns early if not configured. allSettled means one failure doesn't
+  // block the other or the audit response. Awaited so Vercel doesn't kill
+  // pending background fetches when the function freezes after responding.
+  await Promise.allSettled([
+    sendToGhl(audit, reportUrl),
+    pushAuditToGhlApi(audit, reportUrl),
+  ]);
 
   return NextResponse.json({ id: audit.id, reportUrl });
 }
