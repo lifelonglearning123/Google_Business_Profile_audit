@@ -393,27 +393,33 @@ async function attachAuditNote(
 // POST /contacts/{id}/tags is additive (no-op if already present), so this
 // is safe to call on every push — covers the reuse paths where the contact
 // was found via phone/email search or recovered from a 400 duplicate.
+//
+// Note: the Add Tags endpoint requires Version: 2023-02-21 specifically;
+// the 2021-07-28 version we use for search/create is rejected here.
 async function ensureAuditTag(
   headers: Record<string, string>,
   contactId: string
 ): Promise<void> {
+  const tagHeaders = { ...headers, Version: "2023-02-21" };
   try {
     const res = await fetchWithTimeout(
       `${GHL_API_BASE}/contacts/${contactId}/tags`,
       {
         method: "POST",
-        headers,
+        headers: tagHeaders,
         body: JSON.stringify({ tags: ["gbp-audit"] }),
       }
     );
+    const body = await res.text().catch(() => "");
     if (!res.ok) {
-      const body = await res.text().catch(() => "");
       console.error(
         `[ghl-api] tag add returned ${res.status}: ${body.slice(0, 240)}`
       );
       return;
     }
-    console.log(`[ghl-api] gbp-audit tag ensured on contact ${contactId}`);
+    console.log(
+      `[ghl-api] gbp-audit tag ensured on ${contactId} (${res.status}): ${body.slice(0, 200)}`
+    );
   } catch (err) {
     logFetchError("tag add", err);
   }
