@@ -40,17 +40,32 @@ export async function sendToGhl(audit: Audit, reportUrl: string): Promise<void> 
     submitted_at: audit.createdAt,
   };
 
+  // Hard 5s ceiling: the audit route awaits this call (Vercel kills
+  // background fetches), and we sit at the end of a ~30-35s pipeline. If
+  // n8n / GHL is slow or unreachable, we'd rather drop this lead-dispatch
+  // call than blow past Vercel's 60s maxDuration and 504 the user.
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 5_000);
   try {
     const res = await fetch(url, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
+      signal: controller.signal,
     });
     if (!res.ok) {
       const body = await res.text().catch(() => "");
       console.error(`[ghl] webhook returned ${res.status}: ${body.slice(0, 200)}`);
+    } else {
+      console.log(`[ghl] webhook returned ${res.status}`);
     }
   } catch (err) {
-    console.error("[ghl] webhook POST failed:", err);
+    if (err instanceof Error && err.name === "AbortError") {
+      console.error("[ghl] webhook timed out after 5s");
+    } else {
+      console.error("[ghl] webhook POST failed:", err);
+    }
+  } finally {
+    clearTimeout(timer);
   }
 }
