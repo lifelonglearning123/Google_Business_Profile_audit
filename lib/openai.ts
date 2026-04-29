@@ -91,7 +91,9 @@ export async function generateNarrative(args: {
 
   const completion = await getClient().chat.completions.create({
     model: MODEL,
-    temperature: 0.4,
+    // NB: GPT-5-class models only accept the default temperature (1). We
+    // intentionally don't set it. JSON-mode below keeps the output
+    // structured even at default temperature.
     response_format: { type: "json_object" },
     messages: [
       { role: "system", content: SYSTEM_PROMPT },
