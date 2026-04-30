@@ -3,7 +3,10 @@ import { z } from "zod";
 export const AuditInputSchema = z.object({
   gbpUrl: z.string().url("Enter a valid Google Business Profile URL"),
   location: z.string().min(2, "Enter your city or service area"),
-  industry: z.string().min(2, "Pick the closest industry"),
+  // Industry is no longer collected from the user — the audit route backfills
+  // it from gbp.categories[0] after Apify resolves the place. Kept on the
+  // schema so report/PDF/GHL can keep reading audit.input.industry unchanged.
+  industry: z.string().optional().default(""),
   name: z.string().min(2, "Please enter your name"),
   email: z.string().email("Enter a valid email address"),
   mobile: z

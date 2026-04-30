@@ -10,7 +10,6 @@ import {
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import type { Audit, GbpData } from "@/lib/types";
-import { defaultsForIndustry } from "@/lib/lossCalc";
 
 const AGENCY_EMAIL =
   process.env.NEXT_PUBLIC_AGENCY_EMAIL || "hello@example.com";
@@ -128,8 +127,10 @@ export default function AIBoostSection({ audit }: { audit: Audit }) {
       .map((s) => s.key)
   );
 
-  const industryNoun =
-    (defaultsForIndustry(input.industry).keyword || "business").trim();
+  // Use Google's primary category (backfilled into input.industry by the
+  // audit route) as the search-phrase noun. It's already canonical and
+  // covers any business Google indexes — no curated taxonomy needed.
+  const industryNoun = (input.industry || "business").trim();
   const city = input.location.trim() || "your area";
   const searchPhrase = `${industryNoun} ${city}`.toLowerCase();
 
@@ -137,7 +138,7 @@ export default function AIBoostSection({ audit }: { audit: Audit }) {
     `90-day strategy call — ${gbp.name}`
   );
   const mailtoHref = `mailto:${AGENCY_EMAIL}?subject=${subject}&body=${encodeURIComponent(
-    `Hi, I'd like to apply for a 30-min strategy call.\nReport: ${audit.id}\nBusiness: ${gbp.name}\nLocation: ${input.location}`
+    `Hi, I'd like to apply for a 15-min strategy call.\nReport: ${audit.id}\nBusiness: ${gbp.name}\nLocation: ${input.location}`
   )}`;
   const ctaHref = CALENDLY_URL || mailtoHref;
 
@@ -260,7 +261,7 @@ export default function AIBoostSection({ audit }: { audit: Audit }) {
                   Next step
                 </p>
                 <h3 className="mt-2 text-2xl md:text-4xl font-extrabold tracking-tight leading-tight">
-                  Apply for a 30-min strategy call
+                  Apply for a 15-min strategy call
                 </h3>
                 <p className="mt-4 text-base md:text-lg text-white/80 leading-relaxed">
                   Limited to four new businesses per quarter — one{" "}

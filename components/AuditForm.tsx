@@ -1,27 +1,23 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   CheckCircle2,
   AlertCircle,
   Link as LinkIcon,
   MapPin,
-  Briefcase,
   User,
   Mail,
   Phone,
   ArrowRight,
-  Search,
 } from "lucide-react";
-import { INDUSTRIES } from "@/lib/industries";
 import AuditingOverlay from "@/components/AuditingOverlay";
 
 type FieldErrors = Partial<Record<string, string[]>>;
 type Values = {
   gbpUrl: string;
   location: string;
-  industry: string;
   name: string;
   email: string;
   mobile: string;
@@ -32,7 +28,6 @@ export default function AuditForm() {
   const [values, setValues] = useState<Values>({
     gbpUrl: "",
     location: "",
-    industry: "",
     name: "",
     email: "",
     mobile: "",
@@ -43,18 +38,17 @@ export default function AuditForm() {
   const [apiError, setApiError] = useState<string | null>(null);
   const [shakeKey, setShakeKey] = useState(0);
 
-  // Pre-fill industry + location from a prior loss-calculator submission
-  // on the same page. The LossCalculator component stashes the values in
-  // sessionStorage and scrolls here on its CTA — picking them up makes
-  // the funnel one-click smoother.
+  // Pre-fill location from a prior loss-calculator submission on the same
+  // page. The LossCalculator component stashes the value in sessionStorage
+  // and scrolls here on its CTA — picking it up makes the funnel one-click
+  // smoother.
   useEffect(() => {
     try {
       const raw = sessionStorage.getItem("gbp-audit:loss-prefill");
       if (!raw) return;
-      const parsed = JSON.parse(raw) as { industry?: string; location?: string };
+      const parsed = JSON.parse(raw) as { location?: string };
       setValues((prev) => ({
         ...prev,
-        industry: prev.industry || parsed.industry || "",
         location: prev.location || parsed.location || "",
       }));
     } catch {
@@ -77,7 +71,6 @@ export default function AuditForm() {
     setTouched({
       gbpUrl: true,
       location: true,
-      industry: true,
       name: true,
       email: true,
       mobile: true,
@@ -113,7 +106,6 @@ export default function AuditForm() {
     return {
       gbpUrl: /^https?:\/\/.+/.test(v.gbpUrl),
       location: v.location.trim().length >= 2,
-      industry: v.industry.trim().length >= 2,
       name: v.name.trim().length >= 2,
       email: /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.email),
       mobile: /^[+\d][\d\s()\-]{5,}$/.test(v.mobile),
@@ -146,37 +138,22 @@ export default function AuditForm() {
             />
           </FloatingField>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <FloatingField
-              label="City / Service Area"
-              icon={MapPin}
-              error={touched.location ? errors.location?.[0] : undefined}
-              valid={touched.location ? validity.location : null}
-            >
-              <input
-                type="text"
-                required
-                placeholder="Manchester, UK"
-                value={values.location}
-                onChange={(e) => update("location", e.target.value)}
-                onBlur={() => onBlur("location")}
-                className={inputClass}
-              />
-            </FloatingField>
-
-            <FloatingField
-              label="Industry"
-              icon={Briefcase}
-              error={touched.industry ? errors.industry?.[0] : undefined}
-              valid={touched.industry ? validity.industry : null}
-            >
-              <IndustryCombobox
-                value={values.industry}
-                onChange={(v) => update("industry", v)}
-                onBlur={() => onBlur("industry")}
-              />
-            </FloatingField>
-          </div>
+          <FloatingField
+            label="City / Service Area"
+            icon={MapPin}
+            error={touched.location ? errors.location?.[0] : undefined}
+            valid={touched.location ? validity.location : null}
+          >
+            <input
+              type="text"
+              required
+              placeholder="Manchester, UK"
+              value={values.location}
+              onChange={(e) => update("location", e.target.value)}
+              onBlur={() => onBlur("location")}
+              className={inputClass}
+            />
+          </FloatingField>
         </Section>
 
         <Section title="Where to send your report" eyebrow>
@@ -316,78 +293,6 @@ function FloatingField({
       </label>
       {hint && !error && <p className="mt-1.5 text-xs text-ink-faint">{hint}</p>}
       {error && <p className="mt-1.5 text-xs text-red-600">{error}</p>}
-    </div>
-  );
-}
-
-function IndustryCombobox({
-  value,
-  onChange,
-  onBlur,
-}: {
-  value: string;
-  onChange: (v: string) => void;
-  onBlur: () => void;
-}) {
-  const [query, setQuery] = useState(value);
-  const [open, setOpen] = useState(false);
-  const wrapRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => setQuery(value), [value]);
-
-  useEffect(() => {
-    function handler(e: MouseEvent) {
-      if (!wrapRef.current?.contains(e.target as Node)) {
-        setOpen(false);
-        onBlur();
-      }
-    }
-    document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
-  }, [onBlur]);
-
-  const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    if (!q) return INDUSTRIES.slice(0, 10);
-    return INDUSTRIES.filter((i) => i.toLowerCase().includes(q)).slice(0, 10);
-  }, [query]);
-
-  return (
-    <div ref={wrapRef} className="relative">
-      <div className="relative">
-        <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-ink-faint pointer-events-none" />
-        <input
-          type="text"
-          value={query}
-          onFocus={() => setOpen(true)}
-          onChange={(e) => {
-            setQuery(e.target.value);
-            setOpen(true);
-            onChange(e.target.value);
-          }}
-          placeholder="Search e.g. dentist, plumber…"
-          className={`${inputClass} pl-10`}
-        />
-      </div>
-      {open && filtered.length > 0 && (
-        <ul className="absolute z-20 mt-1.5 w-full max-h-64 overflow-auto rounded-lg border border-hairline bg-panel shadow-card-lg py-1">
-          {filtered.map((i) => (
-            <li key={i}>
-              <button
-                type="button"
-                onClick={() => {
-                  onChange(i);
-                  setQuery(i);
-                  setOpen(false);
-                }}
-                className="w-full text-left px-3.5 py-2 text-sm hover:bg-brand-soft hover:text-brand-700 transition"
-              >
-                {i}
-              </button>
-            </li>
-          ))}
-        </ul>
-      )}
     </div>
   );
 }

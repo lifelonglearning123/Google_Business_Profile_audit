@@ -90,11 +90,13 @@ export default function LossCalculator() {
   }
 
   function handleCtaClick() {
-    // Stash industry + location for AuditForm to pre-fill on mount.
+    // Stash location for AuditForm to pre-fill on mount. Industry is no
+    // longer collected by the audit form (it's derived from gbp.categories),
+    // so we don't pass it through.
     try {
       sessionStorage.setItem(
         LOSS_PREFILL_KEY,
-        JSON.stringify({ industry, location: location.trim() })
+        JSON.stringify({ location: location.trim() })
       );
     } catch {
       // sessionStorage can throw in Safari private mode — ignore.

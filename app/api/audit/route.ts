@@ -38,15 +38,24 @@ export async function POST(req: Request) {
       { status: 400 }
     );
   }
-  const input = parsed.data;
+  const parsedInput = parsed.data;
 
   let gbp;
   try {
-    gbp = await fetchGbp({ gbpUrl: input.gbpUrl, location: input.location });
+    gbp = await fetchGbp({ gbpUrl: parsedInput.gbpUrl, location: parsedInput.location });
   } catch (err) {
     const msg = err instanceof Error ? err.message : "Failed to fetch GBP data";
     return NextResponse.json({ error: msg }, { status: 502 });
   }
+
+  // Backfill industry from Google's primary category. The audit form no
+  // longer asks for it — Google's category taxonomy is exhaustive and more
+  // accurate than any dropdown we'd maintain. Downstream code (report
+  // header, PDF, GHL note) keeps reading audit.input.industry unchanged.
+  const input = {
+    ...parsedInput,
+    industry: parsedInput.industry || gbp.categories[0] || "",
+  };
 
   const scorecard = scoreGbp(gbp);
 
