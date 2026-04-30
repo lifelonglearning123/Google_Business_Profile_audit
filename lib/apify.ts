@@ -175,11 +175,12 @@ async function apifyRequest(input: Record<string, unknown>): Promise<ApifyPlace[
     token
   )}`;
 
-  // Apify sync runs typically take 15-40s with reviews enabled. Cap at 55s
-  // so we leave headroom under Vercel's 60s function limit. Override via
-  // APIFY_TIMEOUT_MS for local diagnostic scripts that aren't bound by
-  // Vercel's request budget.
-  const TIMEOUT_MS = Number(process.env.APIFY_TIMEOUT_MS) || 55_000;
+  // Apify sync runs land 30-90s in practice on this actor (reviews + Q&A
+  // scraping is the dominant cost). Cap at 120s to absorb the long tail
+  // while still leaving ~60s of the 180s function budget for OpenAI +
+  // GHL. Override via APIFY_TIMEOUT_MS for local diagnostic scripts that
+  // aren't bound by Vercel's request budget.
+  const TIMEOUT_MS = Number(process.env.APIFY_TIMEOUT_MS) || 120_000;
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
   try {
@@ -255,12 +256,15 @@ export async function fetchGbp(args: {
     maxCrawledPlacesPerSearch: 1,
     language: "en",
     countryCode: "gb",
-    maxReviews: 40,
-    scrapeReviewsCount: 40,
+    // 15/15/15 keeps Apify under ~45s on most profiles. Scoring stays
+    // intact: response-rate is a percentage over the sample, and the Q&A
+    // ceiling is qa >= 5 — well below 15.
+    maxReviews: 15,
+    scrapeReviewsCount: 15,
     // Unlocks ownerUpdates (Posts) and questionsAndAnswers (Q&A) on the
     // response. Without this the engagement pillar stays at the neutral 50.
     scrapePlaceDetailPage: true,
-    maxQuestions: 50,
+    maxQuestions: 15,
     skipClosedPlaces: false,
     scrapeImageAuthors: false,
   };
