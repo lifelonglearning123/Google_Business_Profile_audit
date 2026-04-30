@@ -54,8 +54,26 @@ function parseGbpUrl(url: string): {
     const placeIdMatch = url.match(/!19s(ChIJ[A-Za-z0-9_-]+)/);
     if (placeIdMatch) out.placeId = placeIdMatch[1];
 
-    const cid = u.searchParams.get("cid");
-    if (cid) out.cid = cid;
+    // Newer share URLs (esp. from maps.app.goo.gl) often omit the ChIJ
+    // form and only carry the hex FID after `!1s` — e.g.
+    // `!1s0x486cdfd849ae185d:0x6e579a9e6ea15b0`. The second hex segment
+    // IS the CID. Apify's `placeIds` field is ChIJ-only, but its
+    // `startUrls` accepts `google.com/maps?cid=<decimal>`, so we convert
+    // here and let fetchGbp pick the cid branch. CIDs can exceed 2^53,
+    // hence BigInt rather than parseInt.
+    const fidMatch = url.match(/!1s0x[a-f0-9]+:0x([a-f0-9]+)/i);
+    if (fidMatch) {
+      try {
+        out.cid = BigInt("0x" + fidMatch[1]).toString();
+      } catch {
+        // unreachable for valid hex; swallow to be safe
+      }
+    }
+
+    if (!out.cid) {
+      const cidParam = u.searchParams.get("cid");
+      if (cidParam) out.cid = cidParam;
+    }
   } catch {
     // swallow
   }
@@ -269,15 +287,42 @@ export async function fetchGbp(args: {
     scrapeImageAuthors: false,
   };
 
-  // Prefer placeId when the URL gave us one — pinpoint accuracy, no search
-  // ambiguity. Fall back to search-by-name otherwise.
-  const items = parsed.placeId
-    ? await apifyRequest({ ...baseInput, placeIds: [parsed.placeId] })
-    : await apifyRequest({
+  // Cascade through every identifier we have, falling back when one
+  // returns nothing. Order is precision-first:
+  //   1. ChIJ placeId — pinpoint, single Apify call.
+  //   2. CID via startUrls — Apify's documented form for cid lookups
+  //      (`placeIds` is ChIJ-only). CIDs come from the !1s hex FID or a
+  //      `?cid=` query param.
+  //   3. Search-by-name with the user's location as a bias.
+  //   4. Search-by-name with NO location — handles the common case where
+  //      the user typed a nearby big town instead of the actual GBP
+  //      address town (e.g. "Kingsbridge" for a Salcombe business).
+  let items: ApifyPlace[] = [];
+  if (parsed.placeId) {
+    items = await apifyRequest({ ...baseInput, placeIds: [parsed.placeId] });
+  }
+  if (items.length === 0 && parsed.cid) {
+    items = await apifyRequest({
+      ...baseInput,
+      startUrls: [{ url: `https://maps.google.com/?cid=${parsed.cid}` }],
+    });
+  }
+  if (items.length === 0 && parsed.businessName) {
+    items = await apifyRequest({
+      ...baseInput,
+      searchStringsArray: [`${parsed.businessName} ${location}`],
+      locationQuery: location,
+    });
+    if (items.length === 0) {
+      console.warn(
+        `[audit] no match for "${parsed.businessName}" in "${location}" — retrying without location bias`
+      );
+      items = await apifyRequest({
         ...baseInput,
-        searchStringsArray: [`${parsed.businessName} ${location}`],
-        locationQuery: location,
+        searchStringsArray: [parsed.businessName],
       });
+    }
+  }
 
   const place = items[0];
   if (!place || !place.placeId) {
