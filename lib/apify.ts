@@ -11,7 +11,7 @@ const APIFY_ACTOR = "compass/crawler-google-places";
 //   2. searchStringsArray fallback — `<businessName> <location>` when we
 //      have a name but no placeId (e.g. share.google links resolving to
 //      /search?kgmid=...&q=... URLs, where the `q=` is the businessName).
-function parseGbpUrl(url: string): {
+export function parseGbpUrl(url: string): {
   businessName?: string;
   placeId?: string;
   cid?: string;
@@ -94,7 +94,7 @@ function isLikelyMapsUrl(u: string): boolean {
   }
 }
 
-async function resolveShortLink(url: string): Promise<string> {
+export async function resolveShortLink(url: string): Promise<string> {
   try {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), 8_000);
@@ -193,12 +193,13 @@ async function apifyRequest(input: Record<string, unknown>): Promise<ApifyPlace[
     token
   )}`;
 
-  // Apify sync runs land 30-90s in practice on this actor (reviews + Q&A
-  // scraping is the dominant cost). Cap at 120s to absorb the long tail
-  // while still leaving ~60s of the 180s function budget for OpenAI +
-  // GHL. Override via APIFY_TIMEOUT_MS for local diagnostic scripts that
-  // aren't bound by Vercel's request budget.
-  const TIMEOUT_MS = Number(process.env.APIFY_TIMEOUT_MS) || 120_000;
+  // Apify sync runs land 30-90s for `placeIds` lookups; `startUrls` (cid)
+  // crawls can run 60-120s+ because the actor scrapes from scratch. Cap
+  // at 150s, the most we can safely give a single call under the 180s
+  // function budget while still leaving ~30s for website + OpenAI +
+  // saveAudit. Override via APIFY_TIMEOUT_MS for local diagnostic scripts
+  // that aren't bound by Vercel's request budget.
+  const TIMEOUT_MS = Number(process.env.APIFY_TIMEOUT_MS) || 150_000;
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
   try {
@@ -297,23 +298,31 @@ export async function fetchGbp(args: {
   //   4. Search-by-name with NO location — handles the common case where
   //      the user typed a nearby big town instead of the actual GBP
   //      address town (e.g. "Kingsbridge" for a Salcombe business).
+  //
+  // Each Apify call can run up to 150s; the Vercel function has 180s
+  // total. Skip subsequent fallbacks once we've used 100s+ on Apify so
+  // the rest of the pipeline (website + OpenAI + saveAudit) still fits.
+  const cascadeStart = Date.now();
+  const elapsed = () => Date.now() - cascadeStart;
+  const BUDGET_MS = 100_000;
+
   let items: ApifyPlace[] = [];
   if (parsed.placeId) {
     items = await apifyRequest({ ...baseInput, placeIds: [parsed.placeId] });
   }
-  if (items.length === 0 && parsed.cid) {
+  if (items.length === 0 && parsed.cid && elapsed() < BUDGET_MS) {
     items = await apifyRequest({
       ...baseInput,
       startUrls: [{ url: `https://maps.google.com/?cid=${parsed.cid}` }],
     });
   }
-  if (items.length === 0 && parsed.businessName) {
+  if (items.length === 0 && parsed.businessName && elapsed() < BUDGET_MS) {
     items = await apifyRequest({
       ...baseInput,
       searchStringsArray: [`${parsed.businessName} ${location}`],
       locationQuery: location,
     });
-    if (items.length === 0) {
+    if (items.length === 0 && elapsed() < BUDGET_MS) {
       console.warn(
         `[audit] no match for "${parsed.businessName}" in "${location}" — retrying without location bias`
       );
@@ -442,7 +451,11 @@ export async function fetchGbp(args: {
   if (place.website) {
     const web = await fetchWebsiteData(place.website);
     websiteDescription = web.description;
-    websiteSignals = { reachable: web.reachable, https: web.https };
+    websiteSignals = {
+      reachable: web.reachable,
+      https: web.https,
+      listedAsHttp: web.listedAsHttp,
+    };
     if (web.pages.length > 0 && categories.length > 0) {
       categoryPageMatches = matchCategoriesToPages(categories, web.pages);
     }

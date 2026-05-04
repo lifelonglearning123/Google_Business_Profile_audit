@@ -314,7 +314,16 @@ function scoreWebsite(gbp: GbpData): SubScore {
 
     total += 10;
     if (sigs.https) {
+      // Site itself is secure. Full credit even when the GBP-listed URL
+      // is http://, since the redirect upgrades visitors automatically —
+      // updating the listing is a one-click dashboard fix, not a points
+      // hit. Still emit a low-severity finding so the owner sees it.
       earned += 10;
+      if (sigs.listedAsHttp) {
+        findings.push(
+          "Your GBP lists the website as http:// but it redirects to https:// — update the URL field in your GBP dashboard so customers skip the redirect and don't see a brief 'Not Secure' flash."
+        );
+      }
     } else {
       findings.push(
         "Website doesn't use HTTPS — switch to a secure (https://) URL; Google ranks secure sites higher."

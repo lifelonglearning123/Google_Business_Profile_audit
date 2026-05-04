@@ -1,6 +1,7 @@
 import { NextResponse, after } from "next/server";
 import { AuditInputSchema, type Audit } from "@/lib/types";
 import { fetchGbp } from "@/lib/apify";
+import { fetchGbpFromPlaces } from "@/lib/placesApi";
 import { scoreGbp } from "@/lib/scoring";
 import { generateNarrative } from "@/lib/openai";
 import { sendToGhl, pushAuditToGhlApi } from "@/lib/ghl";
@@ -40,12 +41,31 @@ export async function POST(req: Request) {
   }
   const parsedInput = parsed.data;
 
+  // Apify is the primary source — it returns the richest data (full review
+  // sample, Posts, Q&A, services) which the report needs to be complete on
+  // the first view. We block on it up to its internal 150s timeout, leaving
+  // ~30s of the 180s function budget for narrative + save. If Apify times
+  // out, errors, or returns empty, fall back to the Google Places API for a
+  // fast basic profile so the audit still completes — the engagement
+  // pillar's neutral-50 fallback covers the missing Posts/Q&A in that case.
   let gbp;
   try {
     gbp = await fetchGbp({ gbpUrl: parsedInput.gbpUrl, location: parsedInput.location });
-  } catch (err) {
-    const msg = err instanceof Error ? err.message : "Failed to fetch GBP data";
-    return NextResponse.json({ error: msg }, { status: 502 });
+  } catch (apifyErr) {
+    console.warn(
+      "[audit] apify failed, falling back to Google Places API:",
+      apifyErr instanceof Error ? apifyErr.message : apifyErr
+    );
+    try {
+      gbp = await fetchGbpFromPlaces({
+        gbpUrl: parsedInput.gbpUrl,
+        location: parsedInput.location,
+      });
+    } catch (placesErr) {
+      const msg =
+        placesErr instanceof Error ? placesErr.message : "Failed to fetch GBP data";
+      return NextResponse.json({ error: msg }, { status: 502 });
+    }
   }
 
   // Backfill industry from Google's primary category. The audit form no

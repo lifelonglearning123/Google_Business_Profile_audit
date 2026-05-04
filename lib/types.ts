@@ -53,7 +53,13 @@ export type GbpData = {
   // was set on the GBP.
   websiteSignals?: {
     reachable: boolean;
+    // Final-URL HTTPS — true if the served site uses https, even when the
+    // listed URL was http and the server 301'd to https.
     https: boolean;
+    // The URL stored on the GBP itself starts with http://. When this is
+    // true but `https` is also true, the site is secure but the listing
+    // exposes the insecure URL — a one-line dashboard fix for the owner.
+    listedAsHttp: boolean;
   };
   services?: string[];
   attributes?: string[];

@@ -15,9 +15,17 @@ export type WebsiteData = {
   // Did the homepage actually respond with HTML? Distinguishes "owner has
   // no website on the GBP" from "URL is set but parked / dead".
   reachable: boolean;
-  // Does the URL use HTTPS? Google Search has been a confirmed lightweight
+  // Does the actually-served site use HTTPS? Determined from the final URL
+  // after following redirects, so an http:// URL that 301s to https://
+  // counts as secure. Google Search has been a confirmed lightweight
   // ranking factor for HTTPS for years.
   https: boolean;
+  // The URL stored on the GBP starts with http:// (regardless of where it
+  // redirects). When true and `https` is also true, the site itself is
+  // secure but the listing exposes the insecure URL — owner should fix the
+  // GBP field. When true and `https` is false, the site is genuinely
+  // insecure.
+  listedAsHttp: boolean;
 };
 
 export type WebsitePage = {
@@ -30,18 +38,20 @@ export async function fetchWebsiteData(rawUrl: string): Promise<WebsiteData> {
   try {
     url = new URL(rawUrl);
   } catch {
-    return { pages: [], reachable: false, https: false };
+    return { pages: [], reachable: false, https: false, listedAsHttp: false };
   }
   if (url.protocol !== "http:" && url.protocol !== "https:") {
-    return { pages: [], reachable: false, https: false };
+    return { pages: [], reachable: false, https: false, listedAsHttp: false };
   }
-  const https = url.protocol === "https:";
+  const listedAsHttp = url.protocol === "http:";
 
   // ── Pass 1: homepage HTML (with desktop → mobile → Apify fallback) ──
   let html: string | undefined;
+  let finalUrl = url.toString();
   try {
     const result = await fetchHtmlWithFallbacks(url.toString());
     html = result.html;
+    if (result.finalUrl) finalUrl = result.finalUrl;
     if (result.via !== "desktop") {
       console.log(`[audit] website fetched via ${result.via} fallback`);
     }
@@ -50,7 +60,19 @@ export async function fetchWebsiteData(rawUrl: string): Promise<WebsiteData> {
       "[audit] website fetch failed (all fallbacks exhausted):",
       err instanceof Error ? err.message : err
     );
-    return { pages: [], reachable: false, https };
+    // Couldn't reach the site — fall back to the listed URL's protocol
+    // for https detection. Same behavior as before this signal existed.
+    return { pages: [], reachable: false, https: !listedAsHttp, listedAsHttp };
+  }
+
+  // Use the post-redirect URL's protocol so http:// → https:// upgrades
+  // count as secure. fetchViaApify can't expose a final URL, in which
+  // case finalUrl is still the input URL (degraded but consistent).
+  let https = !listedAsHttp;
+  try {
+    https = new URL(finalUrl).protocol === "https:";
+  } catch {
+    // keep the listed-URL fallback above
   }
 
   const description = extractSummary(html);
@@ -77,6 +99,7 @@ export async function fetchWebsiteData(rawUrl: string): Promise<WebsiteData> {
     pages,
     reachable: true,
     https,
+    listedAsHttp,
   };
 }
 
@@ -122,7 +145,7 @@ async function fetchHtml(
   targetUrl: string,
   headers: Record<string, string> = DESKTOP_HEADERS,
   timeoutMs = 5_000
-): Promise<string> {
+): Promise<{ html: string; finalUrl: string }> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
@@ -140,7 +163,8 @@ async function fetchHtml(
     }
     const buf = await res.arrayBuffer();
     const slice = buf.byteLength > 200_000 ? buf.slice(0, 200_000) : buf;
-    return new TextDecoder("utf-8", { fatal: false }).decode(slice);
+    const html = new TextDecoder("utf-8", { fatal: false }).decode(slice);
+    return { html, finalUrl: res.url || targetUrl };
   } finally {
     clearTimeout(timer);
   }
@@ -158,10 +182,11 @@ async function fetchHtml(
  */
 async function fetchHtmlWithFallbacks(
   targetUrl: string
-): Promise<{ html: string; via: "desktop" | "mobile" | "apify" }> {
+): Promise<{ html: string; finalUrl?: string; via: "desktop" | "mobile" | "apify" }> {
   // Tier 1a — desktop UA
   try {
-    return { html: await fetchHtml(targetUrl, DESKTOP_HEADERS, 5_000), via: "desktop" };
+    const { html, finalUrl } = await fetchHtml(targetUrl, DESKTOP_HEADERS, 5_000);
+    return { html, finalUrl, via: "desktop" };
   } catch (err) {
     console.warn(
       `[audit] website desktop fetch failed (${err instanceof Error ? err.message : err}); trying mobile UA…`
@@ -169,13 +194,16 @@ async function fetchHtmlWithFallbacks(
   }
   // Tier 1b — mobile UA
   try {
-    return { html: await fetchHtml(targetUrl, MOBILE_HEADERS, 5_000), via: "mobile" };
+    const { html, finalUrl } = await fetchHtml(targetUrl, MOBILE_HEADERS, 5_000);
+    return { html, finalUrl, via: "mobile" };
   } catch (err) {
     console.warn(
       `[audit] website mobile fetch failed (${err instanceof Error ? err.message : err}); falling back to Apify scraper…`
     );
   }
-  // Tier 2 — Apify scraper (paid fallback)
+  // Tier 2 — Apify scraper (paid fallback). Cheerio-scraper doesn't expose
+  // the post-redirect URL, so finalUrl stays undefined here and HTTPS
+  // detection degrades to the listed URL's protocol.
   const html = await fetchViaApify(targetUrl);
   return { html, via: "apify" };
 }
