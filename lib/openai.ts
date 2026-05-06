@@ -29,6 +29,7 @@ Rules:
 - Tailor advice to the business's industry and location context.
 - British English. Avoid fluff, hype, and emojis.
 - Never invent facts that aren't supported by the data provided.
+- Public Google APIs cannot read the owner-written GBP "About" description, so its absence in the payload tells you nothing about whether the owner has written one. Never list a missing or short profile description as a weakness, and never recommend "add a description" as if it were absent. Judge how clearly the business communicates from \`websiteDescription\` and the website signals only.
 
 Output format: strict JSON matching the schema the user provides. No prose outside the JSON.`;
 
@@ -47,6 +48,11 @@ export async function generateNarrative(args: {
     hasOwnerResponse: !!r.ownerResponse,
   }));
 
+  // The owner-written GBP description isn't exposed by public Google APIs,
+  // so an empty `gbp.description` is meaningless. Only forward the field
+  // when we actually have one — otherwise the LLM has nothing to (mis)read
+  // and won't surface a phantom "no description" weakness.
+  const gbpDesc = gbp.description?.trim() ?? "";
   const userPayload = {
     business: {
       name: gbp.name,
@@ -58,8 +64,9 @@ export async function generateNarrative(args: {
       rating: gbp.rating,
       reviewCount: gbp.reviewCount,
       photoCount: gbp.photoCount,
-      hasDescription: !!gbp.description,
-      descriptionLength: gbp.description?.length ?? 0,
+      ...(gbpDesc.length > 0
+        ? { profileDescription: gbpDesc, profileDescriptionLength: gbpDesc.length }
+        : {}),
       // Hero copy / meta description scraped from the business's own
       // website. Use it to judge how clearly this business communicates
       // what they do, and to ground recommendations in their own language.
