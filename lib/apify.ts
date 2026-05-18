@@ -212,6 +212,21 @@ async function apifyRequest(input: Record<string, unknown>): Promise<ApifyPlace[
     });
     if (!res.ok) {
       const body = await res.text().catch(() => "");
+      // Apify's `compass/crawler-google-places` actor fails fast on
+      // unresolvable locationQuery with the literal "LOCATION NOT FOUND!"
+      // string. Tag the error so the audit route can surface it as a
+      // customer-fixable input issue (not a "Sorry, something broke" 502).
+      if (/LOCATION NOT FOUND/i.test(body)) {
+        const loc =
+          typeof input.locationQuery === "string" ? input.locationQuery : "";
+        const e = new Error(
+          loc
+            ? `LOCATION_NOT_FOUND: ${loc}`
+            : "LOCATION_NOT_FOUND"
+        );
+        (e as Error & { code?: string }).code = "LOCATION_NOT_FOUND";
+        throw e;
+      }
       throw new Error(`Apify ${res.status}: ${body.slice(0, 400)}`);
     }
     const items = (await res.json()) as ApifyPlace[];
