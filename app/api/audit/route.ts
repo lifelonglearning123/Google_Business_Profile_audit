@@ -182,9 +182,19 @@ export async function POST(req: Request) {
 
   await saveAudit(audit);
 
+  // Build the report URL. Order of preference:
+  //   1. NEXT_PUBLIC_SITE_URL when it's set AND not pointing at localhost.
+  //      On Vercel this should be the custom domain / vercel.app URL.
+  //   2. The incoming request's own origin — always correct on Vercel and
+  //      protects against the common config mistake of leaving the env var
+  //      at its `http://localhost:3000` dev default in production (which
+  //      would otherwise push dead localhost links into GHL notes).
+  const envOrigin = process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/+$/, "");
+  const reqOrigin = `${new URL(req.url).protocol}//${new URL(req.url).host}`;
   const origin =
-    process.env.NEXT_PUBLIC_SITE_URL ||
-    `${new URL(req.url).protocol}//${new URL(req.url).host}`;
+    envOrigin && !/^https?:\/\/localhost([:/]|$)/i.test(envOrigin)
+      ? envOrigin
+      : reqOrigin;
   const reportUrl = `${origin}/report/${audit.id}`;
 
   // Run BOTH GHL paths in the BACKGROUND via Next.js 15's `after()`.

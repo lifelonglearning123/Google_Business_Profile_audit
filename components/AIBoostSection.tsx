@@ -6,7 +6,6 @@ import {
   Workflow,
   PhoneCall,
   Sparkles,
-  CheckCircle2,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import type { Audit, GbpData } from "@/lib/types";
@@ -15,8 +14,6 @@ const AGENCY_EMAIL =
   process.env.NEXT_PUBLIC_AGENCY_EMAIL || "hello@example.com";
 
 const CALENDLY_URL = process.env.NEXT_PUBLIC_CALENDLY_URL || "";
-
-const MONTHLY_FEE_LABEL = "£500/month";
 
 type SolutionDef = {
   key: string;
@@ -162,11 +159,8 @@ export default function AIBoostSection({ audit }: { audit: Audit }) {
             </span>
           </h2>
           <p className="mt-6 text-lg md:text-xl text-ink-muted leading-relaxed max-w-2xl">
-            That's the system we run, end-to-end, for{" "}
-            <strong className="text-ink whitespace-nowrap">
-              {MONTHLY_FEE_LABEL}
-            </strong>
-            . One team, one fee, all five layers below.
+            That's the system we run, end-to-end. One team, all five layers
+            below.
           </p>
         </div>
 
@@ -179,23 +173,13 @@ export default function AIBoostSection({ audit }: { audit: Audit }) {
           />
 
           <div className="relative p-8 md:p-12">
-            <div className="flex items-baseline justify-between flex-wrap gap-3 mb-8">
-              <div>
-                <p className="text-[11px] font-semibold tracking-[0.2em] uppercase text-amber-300/90">
-                  The system
-                </p>
-                <h3 className="mt-2 text-2xl md:text-3xl font-extrabold tracking-tight text-white">
-                  Five layers. One team. One fee.
-                </h3>
-              </div>
-              <div className="text-right">
-                <p className="text-[11px] font-semibold tracking-[0.2em] uppercase text-white/40">
-                  Monthly investment
-                </p>
-                <p className="mt-1 text-3xl md:text-4xl font-extrabold tracking-tight text-amber-300 tabular">
-                  {MONTHLY_FEE_LABEL}
-                </p>
-              </div>
+            <div className="mb-8">
+              <p className="text-[11px] font-semibold tracking-[0.2em] uppercase text-amber-300/90">
+                The system
+              </p>
+              <h3 className="mt-2 text-2xl md:text-3xl font-extrabold tracking-tight text-white">
+                Five layers. One team.
+              </h3>
             </div>
 
             <ol className="relative space-y-1">
@@ -215,40 +199,7 @@ export default function AIBoostSection({ audit }: { audit: Audit }) {
           </div>
         </div>
 
-        {/* ── 3. THE MATH ── */}
-        <div className="mt-12 grid md:grid-cols-2 gap-5">
-          <div className="rounded-2xl bg-white border border-hairline p-7 md:p-8 shadow-card">
-            <p className="text-[11px] font-semibold tracking-[0.2em] uppercase text-ink-faint">
-              What you pay
-            </p>
-            <p className="mt-2 text-4xl md:text-5xl font-extrabold tracking-tight text-ink tabular">
-              {MONTHLY_FEE_LABEL}
-            </p>
-            <ul className="mt-5 space-y-2.5 text-sm md:text-[15px] text-ink">
-              <Tick>All five layers, fully managed</Tick>
-              <Tick>Setup, integrations, monthly optimisation</Tick>
-              <Tick>No long-term contract</Tick>
-            </ul>
-          </div>
-          <div className="rounded-2xl bg-gradient-to-br from-amber-50 via-white to-amber-50/50 border border-amber-200 p-7 md:p-8 shadow-card">
-            <p className="text-[11px] font-semibold tracking-[0.2em] uppercase text-amber-800">
-              What you typically recover
-            </p>
-            <p className="mt-2 text-4xl md:text-5xl font-extrabold tracking-tight text-ink tabular">
-              £2,000 — £8,000
-              <span className="block text-base font-semibold text-ink-muted mt-1">
-                in new business per month
-              </span>
-            </p>
-            <p className="mt-5 text-sm md:text-[15px] text-ink leading-relaxed">
-              Once the system is live (typically week 4), most clients
-              recover 4-16× their monthly investment in new bookings —
-              before any improvement in local-pack rank.
-            </p>
-          </div>
-        </div>
-
-        {/* ── 4. APPLY CTA ── */}
+        {/* ── 3. APPLY CTA ── */}
         <div className="mt-12 relative overflow-hidden rounded-3xl bg-gradient-to-br from-[#0f172a] to-[#1e293b] shadow-card-lg">
           <div
             aria-hidden
@@ -359,18 +310,6 @@ function SystemLayer({
           {personalised}
         </p>
       </div>
-    </li>
-  );
-}
-
-function Tick({ children }: { children: React.ReactNode }) {
-  return (
-    <li className="flex gap-2.5">
-      <CheckCircle2
-        className="w-4 h-4 text-amber-600 shrink-0 mt-0.5"
-        strokeWidth={2.25}
-      />
-      <span className="leading-relaxed">{children}</span>
     </li>
   );
 }

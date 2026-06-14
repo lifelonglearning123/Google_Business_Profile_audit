@@ -83,7 +83,7 @@ export default function LossCalculatorPage() {
               The output is a directional estimate, not a guarantee. It tells
               you the order of magnitude — not whether you'll capture exactly
               that much by getting to the top 3. Real performance depends on
-              your offering, pricing, conversion funnel, and competition.
+              your offering, conversion funnel, and competition.
             </p>
           </section>
 
