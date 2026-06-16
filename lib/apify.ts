@@ -1,6 +1,7 @@
 import type { GbpData, Review } from "./types";
 import { fetchWebsiteData } from "./website";
 import { matchCategoriesToPages } from "./coverage";
+import { REGION } from "./region";
 
 const APIFY_ACTOR = "compass/crawler-google-places";
 
@@ -106,7 +107,7 @@ export async function resolveShortLink(url: string): Promise<string> {
         "User-Agent":
           "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 " +
           "(KHTML, like Gecko) Chrome/120.0 Safari/537.36",
-        "Accept-Language": "en-GB,en;q=0.9",
+        "Accept-Language": REGION.acceptLanguage,
       },
     });
     clearTimeout(timer);
@@ -289,7 +290,7 @@ export async function fetchGbp(args: {
   const baseInput = {
     maxCrawledPlacesPerSearch: 1,
     language: "en",
-    countryCode: "gb",
+    countryCode: REGION.apifyCountryCode,
     // 15/15/15 keeps Apify under ~45s on most profiles. Scoring stays
     // intact: response-rate is a percentage over the sample, and the Q&A
     // ceiling is qa >= 5 — well below 15.

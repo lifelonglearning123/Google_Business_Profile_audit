@@ -1,11 +1,14 @@
 import type { Industry } from "./industries";
+import { REGION } from "./region";
 
 /**
  * Per-industry defaults for the landing-page loss calculator. Each entry has:
  *
  *   keyword       — the seed phrase we send to DataForSEO. We append the
- *                   user's location at call time (e.g. "plumber Trowbridge")
- *                   so the volume reflects local intent, not generic.
+ *                   user's location at call time (e.g. "plumber Austin")
+ *                   so the volume reflects local intent, not generic. The
+ *                   region config can override seeds for industries whose
+ *                   common search term varies (e.g. solicitor vs lawyer).
  *   conversionRate — the rough share of local-pack clicks that turn into a
  *                   customer for this industry. Sourced from common
  *                   marketing benchmarks; intentionally conservative so the
@@ -76,7 +79,8 @@ export function defaultsForIndustry(
  * actually typed by people looking for a local provider.
  */
 export function buildKeyword(industry: string, location: string): string {
-  const seed = defaultsForIndustry(industry).keyword;
+  const regionOverride = REGION.industryKeywordOverrides[industry];
+  const seed = regionOverride ?? defaultsForIndustry(industry).keyword;
   if (!seed) return location.trim();
   return `${seed} ${location}`.replace(/\s+/g, " ").trim();
 }

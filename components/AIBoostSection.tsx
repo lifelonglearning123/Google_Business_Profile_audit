@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import type { Audit, GbpData } from "@/lib/types";
+import { REGION } from "@/lib/region";
 
 const AGENCY_EMAIL =
   process.env.NEXT_PUBLIC_AGENCY_EMAIL || "hello@example.com";
@@ -216,7 +217,7 @@ export default function AIBoostSection({ audit }: { audit: Audit }) {
                 </h3>
                 <p className="mt-4 text-base md:text-lg text-white/80 leading-relaxed">
                   Limited to four new businesses per quarter — one{" "}
-                  {industryNoun} per UK town. We'll review your audit, walk
+                  {industryNoun} per town in {REGION.countryName}. We'll review your audit, walk
                   you through the 90-day plan, and confirm we're the right
                   fit before either side commits.
                 </p>

@@ -24,6 +24,7 @@ import ReportStickyBar from "@/components/ReportStickyBar";
 import ShareButton from "@/components/ShareButton";
 import Toast from "@/components/Toast";
 import AIBoostSection from "@/components/AIBoostSection";
+import { REGION } from "@/lib/region";
 
 export const dynamic = "force-dynamic";
 
@@ -37,7 +38,7 @@ export default async function ReportPage({
   if (!audit) notFound();
 
   const { gbp, scorecard, narrative, input } = audit;
-  const issuedDate = new Date(audit.createdAt).toLocaleDateString("en-GB", {
+  const issuedDate = new Date(audit.createdAt).toLocaleDateString(REGION.dateLocale, {
     day: "numeric",
     month: "short",
     year: "numeric",

@@ -11,6 +11,7 @@ import {
 } from "@react-pdf/renderer";
 import type { Audit } from "@/lib/types";
 import { BRAND_NAME } from "@/lib/brand";
+import { REGION } from "@/lib/region";
 
 /* ──── Palette (matches web) ──── */
 const BRAND = "#4f46e5";
@@ -324,7 +325,7 @@ export default function ReportPdf({ audit }: { audit: Audit }) {
         <Text
           style={styles.footer}
           render={({ pageNumber, totalPages }) =>
-            `Page ${pageNumber} / ${totalPages}  ·  ${input.location}  ·  ${new Date(audit.createdAt).toLocaleDateString("en-GB")}`
+            `Page ${pageNumber} / ${totalPages}  ·  ${input.location}  ·  ${new Date(audit.createdAt).toLocaleDateString(REGION.dateLocale)}`
           }
           fixed
         />

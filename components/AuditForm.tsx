@@ -13,6 +13,7 @@ import {
   ArrowRight,
 } from "lucide-react";
 import AuditingOverlay from "@/components/AuditingOverlay";
+import { REGION } from "@/lib/region";
 
 type FieldErrors = Partial<Record<string, string[]>>;
 type Values = {
@@ -139,7 +140,7 @@ export default function AuditForm() {
           </FloatingField>
 
           <FloatingField
-            label="City / Service Area"
+            label={REGION.locationLabel}
             icon={MapPin}
             error={touched.location ? errors.location?.[0] : undefined}
             valid={touched.location ? validity.location : null}
@@ -147,7 +148,7 @@ export default function AuditForm() {
             <input
               type="text"
               required
-              placeholder="Manchester, UK"
+              placeholder={REGION.locationPlaceholder}
               value={values.location}
               onChange={(e) => update("location", e.target.value)}
               onBlur={() => onBlur("location")}
@@ -202,7 +203,7 @@ export default function AuditForm() {
                 type="tel"
                 required
                 autoComplete="tel"
-                placeholder="+44..."
+                placeholder={REGION.phonePlaceholder}
                 value={values.mobile}
                 onChange={(e) => update("mobile", e.target.value)}
                 onBlur={() => onBlur("mobile")}

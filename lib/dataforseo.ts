@@ -12,16 +12,14 @@
  * on signup is plenty for testing (~1600 lookups).
  */
 
+import { REGION } from "./region";
+
 const ENDPOINT =
   "https://api.dataforseo.com/v3/keywords_data/google/search_volume/live";
 
-// 2826 = United Kingdom in DataForSEO's location codes. Hardcoded for now;
-// can be made configurable later if we expand beyond the UK.
-const UK_LOCATION_CODE = 2826;
-
 export async function fetchSearchVolume(
   keyword: string,
-  locationCode: number = UK_LOCATION_CODE
+  locationCode: number = REGION.dataForSeoLocation
 ): Promise<number | undefined> {
   const login = process.env.DATAFORSEO_LOGIN;
   const password = process.env.DATAFORSEO_PASSWORD;

@@ -1,4 +1,5 @@
 import type { Audit } from "./types";
+import { toE164 } from "./region";
 
 /**
  * GHL integration runs in two parallel paths, controlled independently by
@@ -165,7 +166,7 @@ async function findContactByPhone(
   locationId: string,
   phone: string
 ): Promise<string | undefined> {
-  const normalised = toE164Uk(phone);
+  const normalised = toE164(phone);
   if (!normalised) return undefined;
 
   try {
@@ -250,33 +251,6 @@ async function findContactByEmail(
     logFetchError("email search", err);
     return undefined;
   }
-}
-
-/**
- * Normalise a UK-friendly phone string to E.164 so it matches what GHL
- * stores. Handles the common forms users actually type:
- *
- *   "07712 345678"     → "+447712345678"   (UK national → E.164)
- *   "+44 7712 345678"  → "+447712345678"   (already E.164, just clean)
- *   "447712345678"     → "+447712345678"   (no plus, country code present)
- *   "+15551234567"     → "+15551234567"    (non-UK E.164 left untouched)
- *
- * Limited to UK as the assumed default country. If you start auditing
- * non-UK businesses, swap this for a proper libphonenumber call.
- */
-function toE164Uk(phone: string): string {
-  // Strip anything that isn't a digit or leading plus.
-  let cleaned = phone.replace(/[^\d+]/g, "").trim();
-  if (!cleaned) return "";
-
-  // Already E.164 — return as-is.
-  if (cleaned.startsWith("+")) return cleaned;
-
-  // UK national format starting with 0 → strip the 0, prepend +44.
-  if (cleaned.startsWith("0")) return "+44" + cleaned.slice(1);
-
-  // Has a country code already, just missing the plus.
-  return "+" + cleaned;
 }
 
 async function createContact(

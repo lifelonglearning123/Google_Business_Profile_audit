@@ -2,11 +2,11 @@ import Link from "next/link";
 import { ArrowLeft, TrendingDown } from "lucide-react";
 import LossCalculator from "@/components/LossCalculator";
 import { BRAND_NAME } from "@/lib/brand";
+import { REGION } from "@/lib/region";
 
 export const metadata = {
   title: `How much business are you losing? — ${BRAND_NAME}`,
-  description:
-    "Estimate how much revenue your business is leaving on the table by not appearing in the top 3 of Google Business Profile results. Live UK search-volume data, conservative click-share benchmarks.",
+  description: `Estimate how much revenue your business is leaving on the table by not appearing in the top 3 of Google Business Profile results. Live ${REGION.countryName} search-volume data, conservative click-share benchmarks.`,
 };
 
 export default function LossCalculatorPage() {
@@ -56,7 +56,7 @@ export default function LossCalculatorPage() {
             <ol className="space-y-3 text-sm text-ink-muted leading-relaxed list-decimal list-inside marker:text-ink-faint">
               <li>
                 <strong className="text-ink">Monthly searches</strong> — we
-                pull live UK search volume for "<em>your industry</em>{" "}
+                pull live {REGION.countryName} search volume for "<em>your industry</em>{" "}
                 <em>your location</em>" from a paid keyword-data API. This is
                 the actual number of times people type that phrase into Google
                 each month.

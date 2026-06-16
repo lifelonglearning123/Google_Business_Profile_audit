@@ -3,6 +3,7 @@ import FeatureChip from "@/components/FeatureChip";
 import Accordion from "@/components/Accordion";
 import Link from "next/link";
 import { BRAND_NAME } from "@/lib/brand";
+import { REGION } from "@/lib/region";
 import {
   ShieldCheck,
   FileDown,
@@ -342,7 +343,7 @@ function SamplePreview() {
                 Maple Street Dental Practice
               </h3>
               <p className="mt-1 text-sm text-ink-muted">
-                Dentist · Manchester, UK · 146 reviews · 4.6 ★
+                Dentist · {REGION.sampleCity} · 146 reviews · 4.6 ★
               </p>
               <div className="mt-5 grid grid-cols-2 gap-3 max-w-md">
                 <MiniPillar label="Completeness" score={92} />

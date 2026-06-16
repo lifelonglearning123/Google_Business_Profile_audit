@@ -1,5 +1,6 @@
 import OpenAI from "openai";
 import type { GbpData, Narrative, ScoreCard } from "./types";
+import { REGION } from "./region";
 
 const MODEL = process.env.OPENAI_MODEL || "gpt-5.5";
 
@@ -27,7 +28,8 @@ Rules:
 - Be specific. Quote the real numbers from the data (review count, rating, category count, etc.) rather than vague language.
 - Tie every recommendation to a concrete action the owner can take this week.
 - Tailor advice to the business's industry and location context.
-- British English. Avoid fluff, hype, and emojis.
+- ${REGION.englishVariant}. Use ${REGION.countryName} place names, currency, and conventions. Do not reference other countries (e.g. do not say "in the UK" or "in the US") — the business operates in ${REGION.countryName}.
+- Avoid fluff, hype, and emojis.
 - Never invent facts that aren't supported by the data provided.
 - Public Google APIs cannot read the owner-written GBP "About" description, so its absence in the payload tells you nothing about whether the owner has written one. Never list a missing or short profile description as a weakness, and never recommend "add a description" as if it were absent. Judge how clearly the business communicates from \`websiteDescription\` and the website signals only.
 

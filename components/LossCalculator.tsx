@@ -6,12 +6,12 @@ import {
   TrendingDown,
   Briefcase,
   MapPin,
-  PoundSterling,
   ArrowRight,
   Loader2,
   AlertCircle,
 } from "lucide-react";
 import { INDUSTRIES } from "@/lib/industries";
+import { REGION, formatCurrency } from "@/lib/region";
 
 // Shared key the AuditForm reads on mount to pre-fill industry/location.
 export const LOSS_PREFILL_KEY = "gbp-audit:loss-prefill";
@@ -162,13 +162,13 @@ export default function LossCalculator() {
             type="text"
             value={location}
             onChange={(e) => setLocation(e.target.value)}
-            placeholder="e.g. Trowbridge"
+            placeholder={`e.g. ${REGION.locationPlaceholder.split(",")[0]}`}
             className="w-full bg-transparent outline-none text-sm text-ink placeholder:text-ink-faint"
           />
         </Field>
-        <Field icon={PoundSterling} label="Average sale">
+        <Field icon={REGION.currencyIcon} label="Average sale">
           <div className="flex items-center gap-1.5">
-            <span className="text-sm text-ink-faint">£</span>
+            <span className="text-sm text-ink-faint">{REGION.currencySymbol}</span>
             <input
               type="number"
               inputMode="numeric"
@@ -201,11 +201,11 @@ export default function LossCalculator() {
         <div className="mt-6 rounded-xl border border-red-200 bg-red-50/60 p-5">
           <div className="flex items-baseline gap-2 flex-wrap">
             <span className="text-3xl md:text-4xl font-extrabold text-red-700 tabular">
-              {formatGbp(result.lostRevenueMonthly)}
+              {formatCurrency(result.lostRevenueMonthly)}
             </span>
             <span className="text-sm font-semibold text-red-700">/ month</span>
             <span className="text-sm text-ink-muted ml-2">
-              ≈ {formatGbp(result.lostRevenueYearly)} / year
+              ≈ {formatCurrency(result.lostRevenueYearly)} / year
             </span>
           </div>
           <p className="mt-2 text-sm text-ink leading-relaxed">
@@ -241,8 +241,8 @@ export default function LossCalculator() {
       )}
 
       <p className="mt-4 text-[11px] text-ink-faint">
-        Estimate uses live UK search-volume data plus published local-SEO CTR
-        benchmarks. Directional, not a guarantee.
+        Estimate uses live {REGION.countryName} search-volume data plus
+        published local-SEO CTR benchmarks. Directional, not a guarantee.
       </p>
       </div>
     </div>
@@ -271,10 +271,3 @@ function Field({
   );
 }
 
-function formatGbp(n: number): string {
-  return new Intl.NumberFormat("en-GB", {
-    style: "currency",
-    currency: "GBP",
-    maximumFractionDigits: 0,
-  }).format(n);
-}

@@ -8,6 +8,7 @@
  * Best-effort throughout: any failure returns an empty/undefined result.
  * The audit pipeline never blocks on this.
  */
+import { REGION } from "./region";
 
 export type WebsiteData = {
   description?: string;
@@ -124,7 +125,7 @@ const DESKTOP_HEADERS: Record<string, string> = {
     "(KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
   "Accept":
     "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
-  "Accept-Language": "en-GB,en;q=0.9",
+  "Accept-Language": REGION.acceptLanguage,
   "Accept-Encoding": "gzip, deflate, br",
   "Sec-Fetch-Dest": "document",
   "Sec-Fetch-Mode": "navigate",
